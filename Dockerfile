@@ -1,7 +1,7 @@
 FROM php:8.2-apache
 
-# Copy all files into the Apache public folder
-COPY ./ /var/www/html/
+# Copy content from /public folder into the Apache folder
+COPY ./public/ /var/www/html/
 
 # Expose port 80
 EXPOSE 80
