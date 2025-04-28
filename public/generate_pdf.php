@@ -34,13 +34,18 @@ curl_close($ch);
 
 $result = json_decode($response, true);
 
+header('Content-Type: application/json');
+
 if (isset($result['url'])) {
-    echo "<h2>PDF Generated Successfully!</h2>";
-    echo "<a href='" . $result['url'] . "' target='_blank'>Click here to download your PDF</a>";
+    echo json_encode([
+        "success" => true,
+        "url" => $result['url']
+    ]);
 } else {
-    echo "<h2>PDF Generation Failed</h2>";
-    echo "<pre>";
-    var_dump($result);
-    echo "</pre>";
+    echo json_encode([
+        "success" => false,
+        "error" => $result
+    ]);
 }
+
 ?>
