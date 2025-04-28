@@ -188,8 +188,9 @@ curl_setopt_array($ch, [
         "x-api-key: $apiKey"
     ],
     CURLOPT_POSTFIELDS => json_encode($payload),
+    CURLOPT_TIMEOUT => 120,
+    CURLOPT_CONNECTTIMEOUT => 30,
 ]);
-
 $response = curl_exec($ch);
 curl_close($ch);
 
