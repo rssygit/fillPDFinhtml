@@ -1,23 +1,52 @@
 <?php
-date_default_timezone_set('Asia/Kuala_Lumpur');
 
-$timestamp = date("Ymd_His");
-$uploadDir = 'D:/yu/Web_Based_PDF_Form/backup/uploads_' . $timestamp . '/';
-mkdir($uploadDir, 0777, true);
-
-// Save uploaded image files
-foreach ($_FILES as $key => $file) {
-    if ($file['error'] == 0) {
-        move_uploaded_file($file['tmp_name'], $uploadDir . basename($file['name']));
-    }
-}
-
-// Save form data (excluding signatures) to JSON
 $formData = $_POST;
-unset($formData['signature1'], $formData['signature2'], $formData['signature3']);
-file_put_contents($uploadDir . 'form_data.json', json_encode($formData, JSON_PRETTY_PRINT));
+$fileData = $_FILES;
 
-// Pass everything including base64 signatures to PDF generator
-$_POST['folder'] = $uploadDir;
-include('generate_pdf.php');
+$boundary = uniqid();
+$delimiter = '-------------' . $boundary;
+
+$postData = buildDataFiles($boundary, $formData, $fileData);
+
+$ch = curl_init();
+curl_setopt_array($ch, [
+    CURLOPT_URL => 'generate_pdf.php',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_HTTPHEADER => [
+        "Content-Type: multipart/form-data; boundary=" . $delimiter,
+    ],
+    CURLOPT_POSTFIELDS => $postData,
+]);
+
+$response = curl_exec($ch);
+curl_close($ch);
+
+echo $response;
+
+
+function buildDataFiles($boundary, $fields, $files) {
+    $data = '';
+
+    // Text fields
+    foreach ($fields as $name => $value) {
+        $data .= "--" . $boundary . "\r\n"
+            . 'Content-Disposition: form-data; name="' . $name . "\"\r\n\r\n"
+            . $value . "\r\n";
+    }
+
+    // File uploads
+    foreach ($files as $name => $file) {
+        if (empty($file['tmp_name'])) continue;
+
+        $fileContent = file_get_contents($file['tmp_name']);
+        $data .= "--" . $boundary . "\r\n"
+            . 'Content-Disposition: form-data; name="' . $name . '"; filename="' . $file['name'] . "\"\r\n"
+            . "Content-Type: " . $file['type'] . "\r\n\r\n"
+            . $fileContent . "\r\n";
+    }
+
+    $data .= "--" . $boundary . "--\r\n";
+    return $data;
+}
 ?>
