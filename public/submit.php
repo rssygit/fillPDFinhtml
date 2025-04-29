@@ -33,35 +33,28 @@ function uploadFileToPDFco($filePath, $apiKey) {
 $imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign'];
 $uploadedImages = [];
 
-$tmpFile = $_FILES[$field]['tmp_name'];
-if (!file_exists($tmpFile)) {
-    echo json_encode([
-        'success' => false,
-        'message' => "Temp file for $field does not exist!",
-        'tmp_name' => $tmpFile
-    ]);
-    exit;
-} elseif (!is_readable($tmpFile)) {
-    echo json_encode([
-        'success' => false,
-        'message' => "Temp file for $field is not readable!",
-        'tmp_name' => $tmpFile
-    ]);
-    exit;
-}
-
 foreach ($imageFields as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] == UPLOAD_ERR_OK) {
-        $uploadResult = uploadFileToPDFco($_FILES[$field]['tmp_name'], $apiKey);
-        if ($uploadResult['success']) {
-            $uploadedImages[$field] = $uploadResult['url'];
+
+        $tmpFile = $_FILES[$field]['tmp_name'];
+
+        if (!file_exists($tmpFile) || !is_readable($tmpFile)) {
+            echo json_encode([
+                'success' => false,
+                'message' => "Temp file for $field does not exist or is unreadable!",
+                'tmp_name' => $tmpFile
+            ]);
+            exit;
+        }
+
+        $uploadedUrl = uploadFileToPDFco($tmpFile, $apiKey);
+        if ($uploadedUrl) {
+            $uploadedImages[$field] = $uploadedUrl;
         } else {
-            // Stop and show detailed error
-            header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
                 'message' => "Upload failed for $field",
-                'error' => $uploadResult['error']
+                'error' => "Unknown error"
             ]);
             exit;
         }
