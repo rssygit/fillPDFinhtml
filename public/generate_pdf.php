@@ -10,7 +10,7 @@ if (!$formData) {
 }
 
 $apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
-$templateId = 'filetoken://your-template-filetoken-here';
+$templateId = 'filetoken://b8ac853a49321875e93bec0c28c7e20ed107af93db34161fad';
 
 $imagePositions = [
     ["fieldName" => "image1", "x" => 50, "y" => 210, "width" => 150, "height" => 150],
