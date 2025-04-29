@@ -79,7 +79,10 @@ $_SESSION['form_data'] = [
     'fields' => $normalFields
 ];
 
-// Redirect to generate PDF
-header("Location: generate_pdf.php");
+header('Content-Type: application/json');
+echo json_encode([
+    "success" => true,
+    "message" => "Data saved successfully!"
+]);
 exit;
 ?>

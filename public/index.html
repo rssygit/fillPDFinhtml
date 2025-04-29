@@ -633,7 +633,6 @@ function isCanvasEmpty(canvas) {
     return !pixelBuffer.some(color => color !== 0 && color !== 0xFFFFFFFF);
 }
 
-
 document.getElementById("mainForm").addEventListener("submit", function (e) {
   e.preventDefault(); // Prevent default synchronous submission
   console.log("Form submission intercepted.");
@@ -679,38 +678,50 @@ document.getElementById("mainForm").addEventListener("submit", function (e) {
   })
   .then(data => {
     console.log("Parsed JSON response:", data);
-    if (data.success && data.url) {
-      console.log("Success! Opening PDF in new tab:", data.url);
-      window.open(data.url, '_blank'); // Open PDF in a new tab
-      alert('Form submitted successfully! The PDF should open in a new tab.');
-      form.reset(); // Optionally reset the form
-      // Reset image previews and labels
-      ['1', '2', '3', '4', '5', '6'].forEach(num => {
-          const preview = document.getElementById(`preview${num}`);
-          const label = document.getElementById(`label${num}`);
-          const fileInput = document.querySelector(`input[name="Image${num}"]`);
-          if (preview) {
-              preview.src = '';
-              preview.style.display = 'none';
+    if (data.success) {
+      console.log("Data uploaded successfully. Now generating PDF...");
+
+      // Call generate_pdf.php to generate PDF
+      fetch('generate_pdf.php', { method: 'GET' })
+        .then(response => response.json())
+        .then(pdfData => {
+          if (pdfData.success && pdfData.url) {
+            console.log("PDF generated:", pdfData.url);
+            window.open(pdfData.url, '_blank'); // Open PDF in new tab
+            alert('PDF generated successfully!');
+            form.reset(); // Reset form
+            // Clear previews
+            ['1', '2', '3', '4', '5', '6'].forEach(num => {
+                const preview = document.getElementById(`preview${num}`);
+                const label = document.getElementById(`label${num}`);
+                const fileInput = document.querySelector(`input[name="Image${num}"]`);
+                if (preview) preview.src = '', preview.style.display = 'none';
+                if (label) label.style.display = 'inline';
+                if (fileInput) fileInput.value = '';
+            });
+            clearCanvas('sign1');
+            clearCanvas('sign2');
+          } else {
+            console.error('Error generating PDF:', pdfData);
+            alert('Failed to generate PDF.');
           }
-          if (label) label.style.display = 'inline'; // Or 'block' depending on original style
-          if (fileInput) fileInput.value = ''; // Clear the file input
-      });
-      // Clear signature canvases
-      clearCanvas('sign1');
-      clearCanvas('sign2');
+        })
+        .catch(error => {
+          console.error('Error during PDF generation:', error);
+          alert('Error during PDF generation: ' + error.message);
+        });
+
     } else {
       console.error("Submission failed:", data.message || 'Unknown error', data.error);
-      // Display more detailed error if available from PDF.co
       let errorMsg = `Submission failed: ${data.message || 'An unknown error occurred.'}`;
       if (data.error && data.error.message) {
           errorMsg += `\nDetails: ${data.error.message}`;
       } else if (typeof data.error === 'string') {
-           errorMsg += `\nDetails: ${data.error}`;
+          errorMsg += `\nDetails: ${data.error}`;
       }
       alert(errorMsg);
     }
-  })
+})
   .catch(error => {
     console.error("Fetch error:", error);
     alert(`An error occurred during submission: ${error.message}`);
@@ -725,7 +736,7 @@ document.getElementById("mainForm").addEventListener("submit", function (e) {
   });
 });
 </script>
-<!-- The submit button is now part of the form (added previously), so this separate div is removed -->
+
 </body>
 
 </html>
