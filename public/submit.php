@@ -14,10 +14,20 @@ function uploadFileToPDFco($filePath, $apiKey) {
     ]);
 
     $response = curl_exec($ch);
+    $err = curl_error($ch);
     curl_close($ch);
 
+    if ($err) {
+        return ['success' => false, 'error' => "cURL Error: $err"];
+    }
+
     $result = json_decode($response, true);
-    return $result['url'] ?? null;
+
+    if (!empty($result['url'])) {
+        return ['success' => true, 'url' => $result['url']];
+    } else {
+        return ['success' => false, 'error' => $result['message'] ?? 'Unknown error'];
+    }
 }
 
 $imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign'];
@@ -25,9 +35,18 @@ $uploadedImages = [];
 
 foreach ($imageFields as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] == UPLOAD_ERR_OK) {
-        $uploadedUrl = uploadFileToPDFco($_FILES[$field]['tmp_name'], $apiKey);
-        if ($uploadedUrl) {
-            $uploadedImages[$field] = $uploadedUrl;
+        $uploadResult = uploadFileToPDFco($_FILES[$field]['tmp_name'], $apiKey);
+        if ($uploadResult['success']) {
+            $uploadedImages[$field] = $uploadResult['url'];
+        } else {
+            // Stop and show detailed error
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => "Upload failed for $field",
+                'error' => $uploadResult['error']
+            ]);
+            exit;
         }
     }
 }
