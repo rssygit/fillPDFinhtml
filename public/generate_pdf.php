@@ -1,10 +1,16 @@
 <?php
+session_start();
+
+header('Content-Type: application/json');
 
 // Load form data from session
 $formData = $_SESSION['form_data'] ?? null;
 
+// Always output in json format
 if (!$formData) {
-    die('No form data found!');
+    header('Content-Type: application/json');
+    echo json_encode(["success" => false, "message" => "No form data found!"]);
+    exit;
 }
 
 $apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
@@ -105,8 +111,17 @@ if ($err) {
 // Check result
 if (!empty($result['url'])) {
     echo "✅ PDF generated successfully: <a href='" . $result['url'] . "' target='_blank'>Download Here</a>";
+    echo json_encode([
+        "success" => true,
+        "url" => $result['url']
+    ]);
 } else {
-    echo "❌ Error: " . htmlspecialchars($response);
+    echo json_encode([
+        "success" => false,
+        "message" => "Failed to generate PDF",
+        "error" => $result
+    ]);
 }
+exit;
 
 ?>
