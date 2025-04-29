@@ -1,23 +1,85 @@
 <?php
-date_default_timezone_set('Asia/Kuala_Lumpur');
+session_start(); // or you can save to JSON file if you prefer
 
-$timestamp = date("Ymd_His");
-$uploadDir = 'D:/yu/Web_Based_PDF_Form/backup/uploads_' . $timestamp . '/';
-mkdir($uploadDir, 0777, true);
+// PDF.co API Key
+$apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
 
-// Save uploaded image files
-foreach ($_FILES as $key => $file) {
-    if ($file['error'] == 0) {
-        move_uploaded_file($file['tmp_name'], $uploadDir . basename($file['name']));
+// Function to upload a file to PDF.co and get the URL
+function uploadFileToPDFco($filePath, $apiKey) {
+    $curl = curl_init();
+
+    curl_setopt_array($curl, [
+        CURLOPT_URL => 'https://api.pdf.co/v1/file/upload',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => [
+            'file' => new CURLFile($filePath)
+        ],
+        CURLOPT_HTTPHEADER => [
+            "x-api-key: $apiKey"
+        ],
+    ]);
+
+    $response = curl_exec($curl);
+    $err = curl_error($curl);
+
+    curl_close($curl);
+
+    if ($err) {
+        return false;
+    } else {
+        $result = json_decode($response, true);
+        if (!empty($result['url'])) {
+            return $result['url']; // return uploaded file URL
+        }
+    }
+
+    return false;
+}
+
+// List of expected image fields from HTML form
+$imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign2'];
+
+// Storage for uploaded images URLs
+$uploadedImages = [];
+
+// Loop through expected image fields
+foreach ($imageFields as $field) {
+    if (isset($_FILES[$field]) && $_FILES[$field]['error'] == UPLOAD_ERR_OK) {
+        $tempFilePath = $_FILES[$field]['tmp_name'];
+        $uploadedUrl = uploadFileToPDFco($tempFilePath, $apiKey);
+
+        if ($uploadedUrl !== false) {
+            $uploadedImages[$field] = $uploadedUrl;
+        } else {
+            echo "Failed to upload $field to PDF.co!<br>";
+        }
     }
 }
 
-// Save form data (excluding signatures) to JSON
-$formData = $_POST;
-unset($formData['signature1'], $formData['signature2'], $formData['signature3']);
-file_put_contents($uploadDir . 'form_data.json', json_encode($formData, JSON_PRETTY_PRINT));
+// Now also save normal text fields and checkbox fields
+$normalFields = [];
 
-// Pass everything including base64 signatures to PDF generator
-$_POST['folder'] = $uploadDir;
-include('generate_pdf.php');
+// Example: Loop through all posted data
+foreach ($_POST as $key => $value) {
+    if (!in_array($key, $imageFields)) { // skip image fields
+        if (is_array($value)) {
+            // For checkbox arrays (if multiple checkbox selected)
+            $normalFields[$key] = implode(", ", $value);
+        } else {
+            // Normal text fields
+            $normalFields[$key] = $value;
+        }
+    }
+}
+
+// Save everything into Session
+$_SESSION['form_data'] = [
+    'images' => $uploadedImages,
+    'fields' => $normalFields
+];
+
+// Redirect to generate PDF
+header("Location: generate_pdf.php");
+exit;
 ?>

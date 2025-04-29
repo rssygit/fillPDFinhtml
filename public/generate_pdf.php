@@ -1,42 +1,37 @@
 <?php
 
-header('Content-Type: application/json');
+// Load form data from session
+$formData = $_SESSION['form_data'] ?? null;
 
-// 1. Setup PDF.co credentials
+if (!$formData) {
+    die('No form data found!');
+}
+
 $apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
-$templateId = 'filetoken://944fe515aa9895ef08708501720ae6efbb12796c5048e6d0d8';
-
+$templateId = 'filetoken://b8ac853a49321875e93bec0c28c7e20ed107af93db34161fad';
 $fields = [];
-
-$imageCoordinates = [
-    // Images 1-6 from file uploads
-    'image1' => ['x' => 50,  'y' => 100, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    'image2' => ['x' => 200, 'y' => 100, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    'image3' => ['x' => 350, 'y' => 100, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    'image4' => ['x' => 50,  'y' => 200, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    'image5' => ['x' => 200, 'y' => 200, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    'image6' => ['x' => 350, 'y' => 200, 'width' => 100, 'height' => 75, 'pages' => '0'],
-    // Signatures
-    'techniciansign' => ['x' => 50, 'y' => 700, 'width' => 150, 'height' => 40, 'pages' => '0'], // Adjust coordinates
-    'clientsign' => ['x' => 350, 'y' => 700, 'width' => 150, 'height' => 40, 'pages' => '0'], // Adjust coordinates
+$images = [
+    ["fieldName" => "image1", "x" => 50, "y" => 210, "width" => 150, "height" => 150],
+    ["fieldName" => "image2", "x" => 230, "y" => 210, "width" => 150, "height" => 150],
+    ["fieldName" => "image3", "x" => 410, "y" => 210, "width" => 150, "height" => 150],
+    ["fieldName" => "image4", "x" => 50, "y" => 430, "width" => 150, "height" => 150],
+    ["fieldName" => "image5", "x" => 230, "y" => 430, "width" => 150, "height" => 150],
+    ["fieldName" => "image6", "x" => 410, "y" => 430, "width" => 150, "height" => 150],
+    ["fieldName" => "TechnicianSign", "x" => 400, "y" => 640, "width" => 80, "height" => 50],
+    ["fieldName" => "ClientSign", "x" => 490, "y" => 640, "width" => 80, "height" => 50]
 ];
 
-// 2. Handle Technician merging
+// Handle Technician merging
 $technician = trim(
-    ($_POST['tech1'] ?? '') . ' ' .
-    ($_POST['tech2'] ?? '') . ' ' .
-    ($_POST['tech3'] ?? '') . ' ' .
-    ($_POST['tech4'] ?? '')
+    ($formData['fields']['tech1'] ?? '') . ' ' .
+    ($formData['fields']['tech2'] ?? '') . ' ' .
+    ($formData['fields']['tech3'] ?? '') . ' ' .
+    ($formData['fields']['tech4'] ?? '')
 );
 
-// 3. Handle normal text fields
-foreach ($_POST as $key => $value) {
+// Handle normal text fields
+foreach ($formData['fields'] as $key => $value) {
     if (!is_string($key) || empty($value)) continue;
-
-    // Skip base64 signature field
-    if (strpos($key, 'signature') !== false) {
-        continue;
-    }
 
     // Special handle Technician field (combined)
     if ($key === 'Technician') {
@@ -60,63 +55,30 @@ foreach ($_POST as $key => $value) {
     ];
 }
 
-foreach ($_FILES as $key => $file) {
-    $payload = [
-        "name" => 'test.pdf',
-        "url" => $templateId,
-        "images" => [
-            [
-                "url" => $imageUrl,
-                "pages" => "0",
-                "x" => $coords['x'],
-                "y" => $coords['y'],
-                "width" => $coords['width'],
-                "height" => $coords['height']
-            ]
-        ]
-    ];
-}
-
-// 5. Handle Signature (base64 image)
-if (!empty($_POST['signature'])) {
-    $base64 = explode(',', $_POST['signature'])[1];
-    $signaturePath = 'temp_signature.png';
-    file_put_contents($signaturePath, base64_decode($base64));
-
-    $signatureUrl = uploadFileToPDFco($signaturePath, $apiKey);
-
-    if ($signatureUrl) {
-        $fields[] = [
-            "fieldName" => "TechnicianSign",
+// Handle image fields
+$imagesArray = [];
+foreach ($images as $img) {
+    if (isset($formData['images'][$img['fieldName']])) {
+        $imagesArray[] = [
+            "url" => $formData['images'][$img['fieldName']],
             "pages" => "0",
-            "image" => $signatureUrl
-        ];
-    }
-}
-if (!empty($_POST['client_signature'])) {
-    $base64Client = explode(',', $_POST['client_signature'])[1];
-    $clientSignPath = 'temp_client_signature.png';
-    file_put_contents($clientSignPath, base64_decode($base64Client));
-
-    $clientSignatureUrl = uploadFileToPDFco($clientSignPath, $apiKey);
-
-    if ($clientSignatureUrl) {
-        $fields[] = [
-            "fieldName" => "ClientSign",
-            "pages" => "0",
-            "image" => $clientSignatureUrl
+            "x" => $img['x'],
+            "y" => $img['y'],
+            "width" => $img['width'],
+            "height" => $img['height']
         ];
     }
 } 
 
-// 6. Build final payload
+// Final payload
 $payload = [
     "name" => "filled_sdo.pdf",
     "url" => $templateId,
-    "fields" => $fields
+    "fields" => $fields,
+    "images" => $imagesArray
 ];
 
-// 7. Send API request to fill PDF
+// Send API request to fill PDF
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => 'https://api.pdf.co/v1/pdf/edit/add',
@@ -129,38 +91,22 @@ curl_setopt_array($ch, [
     CURLOPT_POSTFIELDS => json_encode($payload),
 ]);
 
+// Execute request
 $response = curl_exec($ch);
+$err = curl_error($ch);
 curl_close($ch);
 
 $result = json_decode($response, true);
 
-// 8. Handle response
+if ($err) {
+    die("cURL Error: " . htmlspecialchars($err));
+}
+
+// Check result
 if (!empty($result['url'])) {
-    $pdfUrl = str_replace('\u0026', '&', $result['url']); // fix escape characters
-    header("Location: $pdfUrl"); // Auto redirect to filled PDF
-    exit;
+    echo "✅ PDF generated successfully: <a href='" . $result['url'] . "' target='_blank'>Download Here</a>";
 } else {
-    echo json_encode([
-        "success" => false,
-        "message" => "Failed to generate PDF",
-        "error" => $result
-    ]);
+    echo "❌ Error: " . htmlspecialchars($response);
 }
 
-// === Helper function ===
-function uploadFileToPDFco($filePath, $apiKey) {
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => 'https://api.pdf.co/v1/file/upload',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => ["x-api-key: $apiKey"],
-        CURLOPT_POSTFIELDS => ['file' => new CURLFile($filePath)],
-    ]);
-    $response = curl_exec($ch);
-    curl_close($ch);
-
-    $result = json_decode($response, true);
-    return $result['url'] ?? null;
-}
 ?>
