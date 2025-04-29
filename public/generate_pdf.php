@@ -1,6 +1,5 @@
 <?php
 session_start();
-
 header('Content-Type: application/json');
 
 // Load form data from session
@@ -37,9 +36,8 @@ $technician = trim(
 
 // Handle normal text fields
 foreach ($formData['fields'] as $key => $value) {
-    if (!is_string($key) || empty($value)) continue;
+    if (empty($value)) continue;
 
-    // Special handle Technician field (combined)
     if ($key === 'Technician') {
         $fields[] = [
             "fieldName" => "Technician",
@@ -48,17 +46,15 @@ foreach ($formData['fields'] as $key => $value) {
             "fontName" => "Times New Roman",
             "fontSize" => 8
         ];
-        continue;
-    }
-
-    // Handle normal fields
-    $fields[] = [
-        "fieldName" => $key,
-        "pages" => "0",
-        "text" => $value,
-        "fontName" => "Times New Roman",
-        "fontSize" => 8
-    ];
+    } else {
+        $fields[] = [
+            "fieldName" => $key,
+            "pages" => "0",
+            "text" => $value,
+            "fontName" => "Times New Roman",
+            "fontSize" => 8
+        ];
+    
 }
 
 // Handle image fields
@@ -102,15 +98,15 @@ $response = curl_exec($ch);
 $err = curl_error($ch);
 curl_close($ch);
 
-$result = json_decode($response, true);
-
 if ($err) {
-    die("cURL Error: " . htmlspecialchars($err));
+    echo json_encode(["success" => false, "message" => "cURL Error: $err"]);
+    exit;
 }
+
+$result = json_decode($response, true);
 
 // Check result
 if (!empty($result['url'])) {
-    echo "✅ PDF generated successfully: <a href='" . $result['url'] . "' target='_blank'>Download Here</a>";
     echo json_encode([
         "success" => true,
         "url" => $result['url']
