@@ -2,13 +2,12 @@
 
 header('Content-Type: application/json');
 
+// 1. Setup PDF.co credentials
 $apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
 $templateId = 'filetoken://944fe515aa9895ef08708501720ae6efbb12796c5048e6d0d8';
 
 $fields = [];
-$images_payload = []; // Initialize array for coordinate-based images
 
-// Placeholder coordinates and dimensions (in points) - ADJUST THESE VALUES
 $imageCoordinates = [
     // Images 1-6 from file uploads
     'image1' => ['x' => 50,  'y' => 100, 'width' => 100, 'height' => 75, 'pages' => '0'],
@@ -22,34 +21,36 @@ $imageCoordinates = [
     'clientsign' => ['x' => 350, 'y' => 700, 'width' => 150, 'height' => 40, 'pages' => '0'], // Adjust coordinates
 ];
 
-
-// Collect technician names into an array, filtering out empty ones and the default space value
-$tech_names = array_filter(
-    [
-        $_POST['tech1'] ?? '',
-        $_POST['tech2'] ?? '',
-        $_POST['tech3'] ?? '',
-        $_POST['tech4'] ?? ''
-    ],
-    function($value) {
-        // Keep the value if it's not null, not an empty string, and not just a space " " from the default option
-        return $value !== null && $value !== '' && trim($value) !== '';
-    }
+// 2. Handle Technician merging
+$technician = trim(
+    ($_POST['tech1'] ?? '') . ' ' .
+    ($_POST['tech2'] ?? '') . ' ' .
+    ($_POST['tech3'] ?? '') . ' ' .
+    ($_POST['tech4'] ?? '')
 );
-// Join the non-empty names with a comma and space
-$technician = implode(', ', $tech_names);
 
-
+// 3. Handle normal text fields
 foreach ($_POST as $key => $value) {
     if (!is_string($key) || empty($value)) continue;
 
-    // Skip base64 signature fields handled separately
-    if ($key === 'signature1Data' || $key === 'signature2Data') {
-        continue; // Skip signature data handled later
+    // Skip base64 signature field
+    if (strpos($key, 'signature') !== false) {
+        continue;
     }
 
-    // Handle normal fields (including tech1, tech2, etc. individually for now)
-    // We will add the combined Technician field *after* this loop.
+    // Special handle Technician field (combined)
+    if ($key === 'Technician') {
+        $fields[] = [
+            "fieldName" => "Technician",
+            "pages" => "0",
+            "text" => $technician,
+            "fontName" => "Times New Roman",
+            "fontSize" => 8
+        ];
+        continue;
+    }
+
+    // Handle normal fields
     $fields[] = [
         "fieldName" => $key,
         "pages" => "0",
@@ -59,14 +60,14 @@ foreach ($_POST as $key => $value) {
     ];
 }
 
-foreach ($_FILES as $key => $file) { // $key will be 'Image1', 'Image2', etc.
+foreach ($_FILES as $key => $file) {
     $payload = [
         "name" => 'test.pdf',
         "url" => $templateId,
         "images" => [
             [
                 "url" => $imageUrl,
-                "pages" => "0", // First page
+                "pages" => "0",
                 "x" => $coords['x'],
                 "y" => $coords['y'],
                 "width" => $coords['width'],
@@ -76,95 +77,46 @@ foreach ($_FILES as $key => $file) { // $key will be 'Image1', 'Image2', etc.
     ];
 }
 
-// Technician Signature
-if (!empty($_POST['signature1Data'])) {
-    // Check if the data is a valid base64 string with prefix
-    if (preg_match('/^data:image\/png;base64,/', $_POST['signature1Data'])) {
-        $base64 = explode(',', $_POST['signature1Data'])[1];
-        $signaturePath = sys_get_temp_dir() . '/temp_signature_' . uniqid() . '.png'; // Use temp dir
-        if (file_put_contents($signaturePath, base64_decode($base64))) {
-            $signatureUrl = uploadFileToPDFco($signaturePath, $apiKey);
-            // Log signature upload result
-            error_log("PDF.co Upload Result for TechnicianSign: " . ($signatureUrl ?: 'Failed'));
-            if ($signatureUrl) {
-                $fieldNameLower = 'techniciansign'; // Consistent key for coordinate lookup
-                if (isset($imageCoordinates[$fieldNameLower])) {
-                    $coords = $imageCoordinates[$fieldNameLower];
-                    $images_payload[] = [
-                        "url" => $signatureUrl,
-                        "pages" => $coords['pages'],
-                        "x" => $coords['x'],
-                        "y" => $coords['y'],
-                        "width" => $coords['width'],
-                        "height" => $coords['height']
-                    ];
-                } else {
-                    error_log("Warning: Coordinates not defined for image field: " . $fieldNameLower);
-                }
-            }
-            unlink($signaturePath); // Clean up temp file
-        }
+// 5. Handle Signature (base64 image)
+if (!empty($_POST['signature'])) {
+    $base64 = explode(',', $_POST['signature'])[1];
+    $signaturePath = 'temp_signature.png';
+    file_put_contents($signaturePath, base64_decode($base64));
+
+    $signatureUrl = uploadFileToPDFco($signaturePath, $apiKey);
+
+    if ($signatureUrl) {
+        $fields[] = [
+            "fieldName" => "TechnicianSign",
+            "pages" => "0",
+            "image" => $signatureUrl
+        ];
     }
 }
+if (!empty($_POST['client_signature'])) {
+    $base64Client = explode(',', $_POST['client_signature'])[1];
+    $clientSignPath = 'temp_client_signature.png';
+    file_put_contents($clientSignPath, base64_decode($base64Client));
 
-// Client Signature
-if (!empty($_POST['signature2Data'])) {
-     // Check if the data is a valid base64 string with prefix
-    if (preg_match('/^data:image\/png;base64,/', $_POST['signature2Data'])) {
-        $base64Client = explode(',', $_POST['signature2Data'])[1];
-        $clientSignPath = sys_get_temp_dir() . '/temp_client_signature_' . uniqid() . '.png'; // Use temp dir
-        if (file_put_contents($clientSignPath, base64_decode($base64Client))) {
-            $clientSignatureUrl = uploadFileToPDFco($clientSignPath, $apiKey);
-            // Log signature upload result
-            error_log("PDF.co Upload Result for ClientSign: " . ($clientSignatureUrl ?: 'Failed'));
-            if ($clientSignatureUrl) {
-                 $fieldNameLower = 'clientsign'; // Consistent key for coordinate lookup
-                 if (isset($imageCoordinates[$fieldNameLower])) {
-                    $coords = $imageCoordinates[$fieldNameLower];
-                    $images_payload[] = [
-                        "url" => $clientSignatureUrl,
-                        "pages" => $coords['pages'],
-                        "x" => $coords['x'],
-                        "y" => $coords['y'],
-                        "width" => $coords['width'],
-                        "height" => $coords['height']
-                    ];
-                 } else {
-                    error_log("Warning: Coordinates not defined for image field: " . $fieldNameLower);
-                 }
-            }
-            unlink($clientSignPath); // Clean up temp file
-        }
+    $clientSignatureUrl = uploadFileToPDFco($clientSignPath, $apiKey);
+
+    if ($clientSignatureUrl) {
+        $fields[] = [
+            "fieldName" => "ClientSign",
+            "pages" => "0",
+            "image" => $clientSignatureUrl
+        ];
     }
-}
+} 
 
-// Add the combined Technician field explicitly after processing other POST fields
-// Assuming the PDF field name is 'Technician'
-if (!empty($technician)) {
-    $fields[] = [
-        "fieldName" => "Technician", // PDF Field for combined Technician Name
-        "pages" => "0",
-        "text" => $technician,
-        "fontName" => "Times New Roman",
-        "fontSize" => 8 // Adjust font size if needed
-    ];
-}
-
-
+// 6. Build final payload
 $payload = [
     "name" => "filled_sdo.pdf",
     "url" => $templateId,
-    "fields" => $fields // Keep existing text fields
-    // Add images payload if it's not empty
+    "fields" => $fields
 ];
 
-if (!empty($images_payload)) {
-    $payload["images"] = $images_payload;
-}
-
-// Log the final payload before sending
-error_log("PDF.co Payload: " . json_encode($payload));
-
+// 7. Send API request to fill PDF
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => 'https://api.pdf.co/v1/pdf/edit/add',
@@ -182,24 +134,20 @@ curl_close($ch);
 
 $result = json_decode($response, true);
 
+// 8. Handle response
 if (!empty($result['url'])) {
     $pdfUrl = str_replace('\u0026', '&', $result['url']); // fix escape characters
-    // Instead of redirecting, send the URL back as JSON
-    echo json_encode([
-        "success" => true,
-        "url" => $pdfUrl
-    ]);
+    header("Location: $pdfUrl"); // Auto redirect to filled PDF
     exit;
 } else {
-    // Log the full error response from PDF.co
-    error_log("PDF.co Generation Failed. Response: " . json_encode($result));
     echo json_encode([
         "success" => false,
         "message" => "Failed to generate PDF",
-        "error" => $result // Keep sending the error back to the browser too
+        "error" => $result
     ]);
 }
 
+// === Helper function ===
 function uploadFileToPDFco($filePath, $apiKey) {
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -208,24 +156,11 @@ function uploadFileToPDFco($filePath, $apiKey) {
         CURLOPT_POST => true,
         CURLOPT_HTTPHEADER => ["x-api-key: $apiKey"],
         CURLOPT_POSTFIELDS => ['file' => new CURLFile($filePath)],
-        CURLOPT_TIMEOUT => 60, // Keep increased timeout
     ]);
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE); // Get HTTP status code
-    $curlError = curl_error($ch); // Get cURL error message
     curl_close($ch);
 
-    // Log cURL errors if any
-    if ($curlError) {
-        error_log("PDF.co Upload cURL Error for $filePath: " . $curlError);
-    }
-    // Log HTTP status code
-     error_log("PDF.co Upload HTTP Status for $filePath: " . $httpCode);
-
-
     $result = json_decode($response, true);
-    // Log the raw response from file upload
-    error_log("PDF.co Upload Raw Response for $filePath: " . $response);
     return $result['url'] ?? null;
 }
 ?>
