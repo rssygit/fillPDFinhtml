@@ -652,6 +652,8 @@ document.getElementById("mainForm").addEventListener("submit", function (e) {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
+      // Log the image URLs received from submit.php
+      console.log('Uploaded Image URLs:', data.imageUrls);
       return fetch('generate_pdf.php');
     } else {
       throw new Error(data.message || 'Submit failed!');

@@ -45,6 +45,7 @@ $_SESSION['form_data'] = [
 ];
 
 header('Content-Type: application/json');
-echo json_encode(['success' => true, 'message' => 'Data saved successfully!']);
+// Include the uploaded image URLs in the response
+echo json_encode(['success' => true, 'message' => 'Data saved successfully!', 'imageUrls' => $uploadedImages]);
 exit;
 ?>
