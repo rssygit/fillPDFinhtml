@@ -15,8 +15,12 @@ $templateId = 'filetoken://b8ac853a49321875e93bec0c28c7e20ed107af93db34161fad';
 $imagePositions = [
     ["fieldName" => "image1", "x" => 50, "y" => 210, "width" => 150, "height" => 150],
     ["fieldName" => "image2", "x" => 230, "y" => 210, "width" => 150, "height" => 150],
+    ["fieldName" => "image3", "x" => 410, "y" => 210, "width" => 150, "height" => 150],
+    ["fieldName" => "image4", "x" => 50, "y" => 430, "width" => 150, "height" => 150],
+    ["fieldName" => "image5", "x" => 230, "y" => 430, "width" => 150, "height" => 150],
+    ["fieldName" => "image6", "x" => 410, "y" => 430, "width" => 150, "height" => 150],
     ["fieldName" => "TechnicianSign", "x" => 400, "y" => 640, "width" => 80, "height" => 50],
-    ["fieldName" => "ClientSign2", "x" => 490, "y" => 640, "width" => 80, "height" => 50]
+    ["fieldName" => "ClientSign", "x" => 490, "y" => 640, "width" => 80, "height" => 50]
 ];
 
 $fields = [];
