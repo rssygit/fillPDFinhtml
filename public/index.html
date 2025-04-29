@@ -677,57 +677,68 @@ document.getElementById("mainForm").addEventListener("submit", function (e) {
     }
   })
   .then(data => {
-    console.log("Parsed JSON response:", data);
+    console.log("Parsed JSON response from submit.php:", data);
+
     if (data.success) {
-      console.log("Data uploaded successfully. Now generating PDF...");
+      console.log("Data saved successfully. Now generating PDF...");
 
       // Call generate_pdf.php to generate PDF
-      fetch('generate_pdf.php', { method: 'GET' })
-        .then(response => response.json())
-        .then(pdfData => {
-          if (pdfData.success && pdfData.url) {
-            console.log("PDF generated:", pdfData.url);
-            window.open(pdfData.url, '_blank'); // Open PDF in new tab
-            alert('PDF generated successfully!');
-            form.reset(); // Reset form
-            // Clear previews
-            ['1', '2', '3', '4', '5', '6'].forEach(num => {
-                const preview = document.getElementById(`preview${num}`);
-                const label = document.getElementById(`label${num}`);
-                const fileInput = document.querySelector(`input[name="Image${num}"]`);
-                if (preview) preview.src = '', preview.style.display = 'none';
-                if (label) label.style.display = 'inline';
-                if (fileInput) fileInput.value = '';
-            });
-            clearCanvas('sign1');
-            clearCanvas('sign2');
-          } else {
-            console.error('Error generating PDF:', pdfData);
-            alert('Failed to generate PDF.');
-          }
-        })
-        .catch(error => {
-          console.error('Error during PDF generation:', error);
-          alert('Error during PDF generation: ' + error.message);
+      return fetch('generate_pdf.php', { method: 'GET' });
+    } else {
+      throw new Error('Submission failed: ' + (data.message || 'Unknown error'));
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+        return response.text().then(text => {
+            throw new Error(`HTTP error during PDF generation! status: ${response.status}, message: ${text}`);
         });
+    }
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        return response.json();
+    } else {
+        return response.text().then(text => {
+            throw new Error("Server did not return JSON during PDF generation. Response: " + text.substring(0, 200) + "...");
+        });
+    }
+  })
+  .then(pdfData => {
+    console.log("Parsed JSON response from generate_pdf.php:", pdfData);
+
+    if (pdfData.success && pdfData.url) {
+      console.log("PDF generated:", pdfData.url);
+      window.open(pdfData.url, '_blank'); // Open PDF in new tab
+      alert('Form submitted and PDF generated successfully!');
+      
+      form.reset(); // Reset form
+
+      // Reset image previews and labels
+      ['1', '2', '3', '4', '5', '6'].forEach(num => {
+          const preview = document.getElementById(`preview${num}`);
+          const label = document.getElementById(`label${num}`);
+          const fileInput = document.querySelector(`input[name="Image${num}"]`);
+          if (preview) {
+              preview.src = '';
+              preview.style.display = 'none';
+          }
+          if (label) label.style.display = 'inline';
+          if (fileInput) fileInput.value = '';
+      });
+      // Clear signature canvases
+      clearCanvas('sign1');
+      clearCanvas('sign2');
 
     } else {
-      console.error("Submission failed:", data.message || 'Unknown error', data.error);
-      let errorMsg = `Submission failed: ${data.message || 'An unknown error occurred.'}`;
-      if (data.error && data.error.message) {
-          errorMsg += `\nDetails: ${data.error.message}`;
-      } else if (typeof data.error === 'string') {
-          errorMsg += `\nDetails: ${data.error}`;
-      }
-      alert(errorMsg);
+      console.error('Failed to generate PDF:', pdfData);
+      alert('Failed to generate PDF.');
     }
-})
+  })
   .catch(error => {
     console.error("Fetch error:", error);
-    alert(`An error occurred during submission: ${error.message}`);
+    alert(`An error occurred: ${error.message}`);
   })
   .finally(() => {
-    // Re-enable button regardless of success or failure
     if (submitButton) {
       submitButton.disabled = false;
       submitButton.textContent = 'Submit Form';
