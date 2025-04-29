@@ -33,6 +33,23 @@ function uploadFileToPDFco($filePath, $apiKey) {
 $imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign'];
 $uploadedImages = [];
 
+$tmpFile = $_FILES[$field]['tmp_name'];
+if (!file_exists($tmpFile)) {
+    echo json_encode([
+        'success' => false,
+        'message' => "Temp file for $field does not exist!",
+        'tmp_name' => $tmpFile
+    ]);
+    exit;
+} elseif (!is_readable($tmpFile)) {
+    echo json_encode([
+        'success' => false,
+        'message' => "Temp file for $field is not readable!",
+        'tmp_name' => $tmpFile
+    ]);
+    exit;
+}
+
 foreach ($imageFields as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] == UPLOAD_ERR_OK) {
         $uploadResult = uploadFileToPDFco($_FILES[$field]['tmp_name'], $apiKey);
