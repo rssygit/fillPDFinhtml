@@ -26,31 +26,35 @@ $imagePositions = [
 $fields = [];
 
 $technician = trim(
-    ($formData['fields']['tech1'] ?? '') . ' ' .
-    ($formData['fields']['tech2'] ?? '') . ' ' .
-    ($formData['fields']['tech3'] ?? '') . ' ' .
+    ($formData['fields']['tech1'] ?? '') . ',' .
+    ($formData['fields']['tech2'] ?? '') . ',' .
+    ($formData['fields']['tech3'] ?? '') . ',' .
     ($formData['fields']['tech4'] ?? '')
 );
 
+// Add regular fields, skipping individual tech fields
 foreach ($formData['fields'] as $key => $value) {
-    if (empty($value)) continue;
-    if ($key === 'Technician') {
-        $fields[] = [
-            "fieldName" => "Technician",
-            "pages" => "0",
-            "text" => "debug",
-            "fontName" => "Times New Roman",
-            "fontSize" => 8
-        ];
-    } else {
-        $fields[] = [
-            "fieldName" => $key,
-            "pages" => "0",
-            "text" => $value,
-            "fontName" => "Times New Roman",
-            "fontSize" => 8
-        ];
+    if (empty($value) || in_array($key, ['tech1', 'tech2', 'tech3', 'tech4'])) {
+        continue; // Skip empty fields and individual tech fields
     }
+    $fields[] = [
+        "fieldName" => $key,
+        "pages" => "0",
+        "text" => $value,
+        "fontName" => "Times New Roman",
+        "fontSize" => 8
+    ];
+}
+
+// Add the combined Technician field if it's not empty
+if (!empty($technician)) {
+    $fields[] = [
+        "fieldName" => "Technician",
+        "pages" => "0",
+        "text" => $technician,
+        "fontName" => "Times New Roman",
+        "fontSize" => 8
+    ];
 }
 
 $imagesArray = [];
