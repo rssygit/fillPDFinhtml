@@ -1,88 +1,50 @@
 <?php
-session_start(); // or you can save to JSON file if you prefer
+session_start();
 
-// PDF.co API Key
-$apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
+$apiKey = 'your-api-key-here';
 
-// Function to upload a file to PDF.co and get the URL
 function uploadFileToPDFco($filePath, $apiKey) {
-    $curl = curl_init();
-
-    curl_setopt_array($curl, [
+    $ch = curl_init();
+    curl_setopt_array($ch, [
         CURLOPT_URL => 'https://api.pdf.co/v1/file/upload',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => [
-            'file' => new CURLFile($filePath)
-        ],
-        CURLOPT_HTTPHEADER => [
-            "x-api-key: $apiKey"
-        ],
+        CURLOPT_HTTPHEADER => ["x-api-key: $apiKey"],
+        CURLOPT_POSTFIELDS => ['file' => new CURLFile($filePath)],
     ]);
 
-    $response = curl_exec($curl);
-    $err = curl_error($curl);
+    $response = curl_exec($ch);
+    curl_close($ch);
 
-    curl_close($curl);
-
-    if ($err) {
-        return false;
-    } else {
-        $result = json_decode($response, true);
-        if (!empty($result['url'])) {
-            return $result['url']; // return uploaded file URL
-        }
-    }
-
-    return false;
+    $result = json_decode($response, true);
+    return $result['url'] ?? null;
 }
 
-// List of expected image fields from HTML form
-$imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign2'];
-
-// Storage for uploaded images URLs
+$imageFields = ['image1', 'image2', 'TechnicianSign', 'ClientSign2'];
 $uploadedImages = [];
 
-// Loop through expected image fields
 foreach ($imageFields as $field) {
     if (isset($_FILES[$field]) && $_FILES[$field]['error'] == UPLOAD_ERR_OK) {
-        $tempFilePath = $_FILES[$field]['tmp_name'];
-        $uploadedUrl = uploadFileToPDFco($tempFilePath, $apiKey);
-
-        if ($uploadedUrl !== false) {
+        $uploadedUrl = uploadFileToPDFco($_FILES[$field]['tmp_name'], $apiKey);
+        if ($uploadedUrl) {
             $uploadedImages[$field] = $uploadedUrl;
-        } else {
-            echo "Failed to upload $field to PDF.co!<br>";
         }
     }
 }
 
-// Now also save normal text fields and checkbox fields
 $normalFields = [];
-
-// Example: Loop through all posted data
 foreach ($_POST as $key => $value) {
-    if (!in_array($key, $imageFields)) { // skip image fields
-        if (is_array($value)) {
-            // For checkbox arrays (if multiple checkbox selected)
-            $normalFields[$key] = implode(", ", $value);
-        } else {
-            // Normal text fields
-            $normalFields[$key] = $value;
-        }
+    if (!in_array($key, $imageFields)) {
+        $normalFields[$key] = $value;
     }
 }
 
-// Save everything into Session
 $_SESSION['form_data'] = [
     'images' => $uploadedImages,
     'fields' => $normalFields
 ];
 
 header('Content-Type: application/json');
-echo json_encode([
-    "success" => true,
-    "message" => "Data saved successfully!"
-]);
+echo json_encode(['success' => true, 'message' => 'Data saved successfully!']);
 exit;
 ?>

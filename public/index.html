@@ -634,116 +634,47 @@ function isCanvasEmpty(canvas) {
 }
 
 document.getElementById("mainForm").addEventListener("submit", function (e) {
-  e.preventDefault(); // Prevent default synchronous submission
-  console.log("Form submission intercepted.");
-
-  // Capture signatures first
-  captureSignature("sign1", "signature1Data"); // Technician Signature
-  captureSignature("sign2", "signature2Data"); // Client Signature
-
+  e.preventDefault();
   const form = e.target;
   const formData = new FormData(form);
-  const submitButton = form.querySelector('button[type="submit"]'); // Find the submit button within the form
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  // Disable button and show loading state
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.textContent = 'Submitting...';
   }
 
-  console.log("Sending data via fetch...");
-
   fetch(form.action, {
     method: form.method,
-    body: formData, // FormData handles multipart/form-data automatically
+    body: formData
   })
-  .then(response => {
-    console.log("Received response from server.");
-    if (!response.ok) {
-        // Try to get more error details from the response body
-        return response.text().then(text => {
-           throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
-        });
-    }
-     // Check content type before parsing as JSON
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-        return response.json(); // Parse JSON body
-    } else {
-        return response.text().then(text => {
-            console.error("Received non-JSON response:", text);
-            throw new Error("Server did not return JSON. Response: " + text.substring(0, 200) + "..."); // Show beginning of text response
-        });
-    }
-  })
+  .then(response => response.json())
   .then(data => {
-    console.log("Parsed JSON response from submit.php:", data);
-
     if (data.success) {
-      console.log("Data saved successfully. Now generating PDF...");
-
-      // Call generate_pdf.php to generate PDF
-      return fetch('generate_pdf.php', { method: 'GET' });
+      return fetch('generate_pdf.php');
     } else {
-      throw new Error('Submission failed: ' + (data.message || 'Unknown error'));
+      throw new Error(data.message || 'Submit failed!');
     }
   })
-  .then(response => {
-    if (!response.ok) {
-        return response.text().then(text => {
-            throw new Error(`HTTP error during PDF generation! status: ${response.status}, message: ${text}`);
-        });
-    }
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.indexOf("application/json") !== -1) {
-        return response.json();
-    } else {
-        return response.text().then(text => {
-            throw new Error("Server did not return JSON during PDF generation. Response: " + text.substring(0, 200) + "...");
-        });
-    }
-  })
+  .then(response => response.json())
   .then(pdfData => {
-    console.log("Parsed JSON response from generate_pdf.php:", pdfData);
-
     if (pdfData.success && pdfData.url) {
-      console.log("PDF generated:", pdfData.url);
-      window.open(pdfData.url, '_blank'); // Open PDF in new tab
-      alert('Form submitted and PDF generated successfully!');
-      
-      form.reset(); // Reset form
-
-      // Reset image previews and labels
-      ['1', '2', '3', '4', '5', '6'].forEach(num => {
-          const preview = document.getElementById(`preview${num}`);
-          const label = document.getElementById(`label${num}`);
-          const fileInput = document.querySelector(`input[name="Image${num}"]`);
-          if (preview) {
-              preview.src = '';
-              preview.style.display = 'none';
-          }
-          if (label) label.style.display = 'inline';
-          if (fileInput) fileInput.value = '';
-      });
-      // Clear signature canvases
-      clearCanvas('sign1');
-      clearCanvas('sign2');
-
+      const linkContainer = document.getElementById('downloadLinkContainer');
+      linkContainer.innerHTML = `<a href="${pdfData.url}" target="_blank">✅ PDF generated successfully! Download Here</a>`;
+      form.reset();
     } else {
-      console.error('Failed to generate PDF:', pdfData);
-      alert('Failed to generate PDF.');
+      throw new Error(pdfData.message || 'PDF generation failed!');
     }
   })
   .catch(error => {
-    console.error("Fetch error:", error);
-    alert(`An error occurred: ${error.message}`);
+    console.error('Error:', error);
+    alert('An error occurred: ' + error.message);
   })
   .finally(() => {
     if (submitButton) {
       submitButton.disabled = false;
       submitButton.textContent = 'Submit Form';
     }
-    console.log("Submission process finished.");
   });
 });
 </script>
