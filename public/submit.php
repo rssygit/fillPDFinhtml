@@ -58,13 +58,27 @@ foreach ($_POST as $key => $value) {
     }
 }
 
+if (empty($uploadedImages)) {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'message' => 'Image upload failed. No images were successfully uploaded.',
+        'imageUrls' => []
+    ]);
+    exit;
+}
+
 $_SESSION['form_data'] = [
     'images' => $uploadedImages,
     'fields' => $normalFields
 ];
 
 header('Content-Type: application/json');
-// Include the uploaded image URLs in the response
-echo json_encode(['success' => true, 'message' => 'Data saved successfully!', 'imageUrls' => $uploadedImages]);
+echo json_encode([
+    'success' => true,
+    'message' => 'Data saved successfully!',
+    'imageUrls' => $uploadedImages
+]);
 exit;
+
 ?>
