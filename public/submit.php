@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-$apiKey = 'your-api-key-here';
+$apiKey = 'rtsb.sy@gmail.com_2GaZSXqo9pRx1qm7vA8Ywc8lPHzjZV3cS8i61nk5WbIJVqe0WKtZwsWmLyvb01se';
 
 function uploadFileToPDFco($filePath, $apiKey) {
     $ch = curl_init();
@@ -20,7 +20,7 @@ function uploadFileToPDFco($filePath, $apiKey) {
     return $result['url'] ?? null;
 }
 
-$imageFields = ['image1', 'image2', 'TechnicianSign', 'ClientSign2'];
+$imageFields = ['image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'TechnicianSign', 'ClientSign'];
 $uploadedImages = [];
 
 foreach ($imageFields as $field) {
