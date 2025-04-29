@@ -38,7 +38,7 @@ foreach ($formData['fields'] as $key => $value) {
         $fields[] = [
             "fieldName" => "Technician",
             "pages" => "0",
-            "text" => $technician,
+            "text" => "debug",
             "fontName" => "Times New Roman",
             "fontSize" => 8
         ];
